@@ -41,7 +41,7 @@
 		/**
 		 * Returns the source value for display in the Datasources index
 		 *
-		 * @param string $file
+		 * @param string $handle
 		 *  The path to the Datasource file
 		 * @return string
 		 */
@@ -112,6 +112,9 @@
 		}
 
 		public static function prepare(array $settings, array $params, $template) {
+			if( !is_array($settings[self::getClass()]['fields']) )
+				$settings[self::getClass()]['fields'] = array();
+
 			return sprintf($template,
 				$params['rootelement'],
 				$settings[self::getClass()]['section'],
@@ -155,6 +158,9 @@
 				$f = new XMLElement($field['element_name']);
 				$f->setAttribute('required', $field['required']);
 
+				$result->appendChild($f);
+
+
 				foreach($field as $key => $value) {
 					// Core attributes, these are common to all fields
 					if (in_array($key, array('id', 'type', 'required', 'label', 'location', 'show_column', 'sortorder'))) {
@@ -166,17 +172,39 @@
 						makes sense to filter out those we don't want rather than explicitly
 						choose the ones we do.
 					*/
-					if (!in_array($key, array('id', 'type', 'required', 'label', 'show_column', 'sortorder', 'element_name', 'parent_section', 'location', 'field_id', 'related_field_id', 'static_options', 'dynamic_options', 'pre_populate_source', 'limit', 'allow_author_change'))) {
+					if (!in_array($key, array('id', 'type', 'required', 'label', 'show_column', 'sortorder', 'element_name', 'parent_section', 'location', 'field_id', 'related_field_id', 'static_options', 'dynamic_options', 'pre_populate_source', 'limit', 'allow_author_change', 'url_expression'))) {
 						if (strlen($value) > 0) {
-							$f->appendChild(new XMLElement(Lang::createHandle($key), General::sanitize($value)));
+							$f->appendChild(new XMLElement(Lang::createHandle($key), $value));
 						}
 					}
+				}
+
+				// if SBL / SBL+, grab associated sections
+				if( in_array($field['type'],array('selectbox_link', 'selectbox_link_plus')) ){
+					$sql = sprintf("SELECT `parent_section_id`, `parent_section_field_id` FROM `tbl_sections_association` WHERE `child_section_field_id` = %d", $field['id']);
+
+					$associations = Symphony::Database()->fetch($sql);
+
+					if( is_array( $associations ) ){
+						$relations = new XMLElement('relations');
+
+						foreach($associations as $association){
+							$relations->appendChild(
+								new XMLElement('item',null, array(
+									'section-id' => $association['parent_section_id'],
+									'field-id' => $association['parent_section_field_id']
+								))
+							);
+						}
+
+						$f->appendChild($relations);
+					}
+
 				}
 
 				// Allow a field to define its own schema XML:
 				if (method_exists($section_field, 'appendFieldSchema')) {
 					$section_field->appendFieldSchema($f);
-					$result->appendChild($f);
 					continue;
 				}
 
@@ -188,7 +216,14 @@
 				$section_field->displayPublishPanel($html);
 
 				$dom = new DomDocument();
-				$dom->loadXML($html->generate());
+				try{
+					$dom->loadXML($html->generate());
+				}
+				catch( Exception $e ){
+					$rXXXX = $html->generate();
+					$rXXXX = str_replace('&ndash;','-',$rXXXX);
+					$dom->loadXML($rXXXX);
+				}
 
 				$xpath = new DomXPath($dom);
 
@@ -225,8 +260,6 @@
 				if ($single_input_value) {
 					$f->appendChild(new XMLElement('initial-value', $single_input_value->getAttribute('value')));
 				}
-
-				$result->appendChild($f);
 			}
 
 			return $result;
@@ -251,7 +284,7 @@
 
 			// generate counts for tags
 			if ($field['type'] == 'taglist') {
-				$total = Symphony::Database()->fetchCol('count', sprintf('SELECT COUNT(handle) AS count FROM tbl_entries_data_%s WHERE handle="%s"', $field['id'], $handle));
+				$total = Frontend::instance()->Database->fetchCol('count', sprintf('SELECT COUNT(handle) AS count FROM tbl_entries_data_%s WHERE handle="%s"', $field['id'], $handle));
 				$option_element->setAttribute('count', $total[0]);
 			}
 
