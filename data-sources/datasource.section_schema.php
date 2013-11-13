@@ -6,7 +6,15 @@
 
 	Class SectionSchemaDatasource extends DataSource implements iDatasource {
 
-		private static $_incompatible_publishpanel = array('mediathek', 'subsectionmanager', 'imagecropper', 'readonlyinput', 'author', 'entry_versions', 'status');
+		private static $_incompatible_publishpanel = array(
+			'mediathek',
+			'subsectionmanager',
+			'imagecropper',
+			'readonlyinput',
+			'author',
+			'entry_versions',
+			'status'
+		);
 
 		public static function getName() {
 			return __('Section Schema');
@@ -20,46 +28,52 @@
 			return self::getClass();
 		}
 
-		public static function getTemplate(){
+		public static function getTemplate() {
 			return EXTENSIONS . '/section_schemas/templates/blueprints.datasource.tpl';
 		}
 
 		public function settings() {
-			$settings = array();
+			$settings                              = array();
 			$settings[self::getClass()]['section'] = $this->dsParamSECTION;
-			$settings[self::getClass()]['fields'] = $this->dsParamFIELDS;
+			$settings[self::getClass()]['fields']  = $this->dsParamFIELDS;
 
-			if(is_null($settings[self::getClass()]['fields'])) $settings[self::getClass()]['fields'] = array();
+			if (is_null($settings[self::getClass()]['fields'])) {
+				$settings[self::getClass()]['fields'] = array();
+			}
 
 			return $settings;
 		}
 
-	/*-------------------------------------------------------------------------
-		Utilities
-	-------------------------------------------------------------------------*/
+		/*-------------------------------------------------------------------------
+			Utilities
+		-------------------------------------------------------------------------*/
 
 		/**
 		 * Returns the source value for display in the Datasources index
 		 *
 		 * @param string $handle
 		 *  The path to the Datasource file
+		 *
 		 * @return string
 		 */
 		public function getSourceColumn($handle) {
 			$datasource = DatasourceManager::create($handle, array(), false);
+
 			return 'Section Schema: ' . $datasource->dsParamSECTION;
 		}
 
 
-	/*-------------------------------------------------------------------------
-		Editor
-	-------------------------------------------------------------------------*/
+		/*-------------------------------------------------------------------------
+			Editor
+		-------------------------------------------------------------------------*/
 
 		public static function buildEditor(XMLElement $wrapper, array &$errors = array(), array $settings = null, $handle = null) {
 
 			Administration::instance()->Page->addScriptToHead(URL . '/extensions/section_schemas/assets/section_schemas.datasource.js', 100);
 
-			if(is_null($settings[self::getClass()]['fields'])) $settings[self::getClass()]['fields'] = array();
+			if (is_null($settings[self::getClass()]['fields'])) {
+				$settings[self::getClass()]['fields'] = array();
+			}
 
 			$fieldset = new XMLElement('fieldset');
 			$fieldset->setAttribute('class', 'settings contextual ' . __CLASS__);
@@ -68,11 +82,13 @@
 			$group = new XMLElement('div');
 			$group->setAttribute('class', 'two columns');
 
-			$options = array();
+			$options  = array();
 			$sections = SectionManager::fetch();
-			foreach($sections as $section) {
+			foreach ($sections as $section) {
 				$options[] = array(
-					$section->get('handle'), $settings[self::getClass()]['section'] == $section->get('handle'), $section->get('name')
+					$section->get('handle'),
+					$settings[self::getClass()]['section'] == $section->get('handle'),
+					$section->get('name')
 				);
 			}
 
@@ -83,13 +99,15 @@
 			);
 			$group->appendChild($label);
 
-			foreach($sections as $section) {
+			foreach ($sections as $section) {
 
-				$fields = $section->fetchFields();
+				$fields  = $section->fetchFields();
 				$options = array();
-				foreach($fields as $field) {
+				foreach ($fields as $field) {
 					$options[] = array(
-						$field->get('element_name'), in_array($field->get('element_name'), $settings[self::getClass()]['fields']), $field->get('label') . ' (' . $field->get('type') . ')'
+						$field->get('element_name'),
+						in_array($field->get('element_name'), $settings[self::getClass()]['fields']),
+						$field->get('label') . ' (' . $field->get('type') . ')'
 					);
 				}
 
@@ -99,7 +117,6 @@
 					Widget::Select('fields[' . self::getClass() . '][fields][]', $options, array('multiple' => 'multiple'))
 				);
 				$group->appendChild($label);
-
 			}
 
 			$fieldset->appendChild($group);
@@ -112,8 +129,9 @@
 		}
 
 		public static function prepare(array $settings, array $params, $template) {
-			if( !is_array($settings[self::getClass()]['fields']) )
+			if (!is_array($settings[self::getClass()]['fields'])) {
 				$settings[self::getClass()]['fields'] = array();
+			}
 
 			return sprintf($template,
 				$params['rootelement'],
@@ -122,18 +140,18 @@
 			);
 		}
 
-	/*-------------------------------------------------------------------------
-		Execution
-	-------------------------------------------------------------------------*/
+		/*-------------------------------------------------------------------------
+			Execution
+		-------------------------------------------------------------------------*/
 
-		public function grab(array &$param_pool=NULL) {
+		public function grab(array &$param_pool = null) {
 			$result = new XMLElement($this->dsParamROOTELEMENT);
 
-			$result->setAttribute('type','section-schema');
+			$result->setAttribute('type', 'section-schema');
 
 			// retrieve this section
 			$section_id = SectionManager::fetchIDFromHandle($this->dsParamSECTION);
-		  	$section = SectionManager::fetch($section_id);
+			$section    = SectionManager::fetch($section_id);
 
 			$result->setAttribute('id', $section_id);
 			$result->setAttribute('handle', $section->get('handle'));
@@ -148,22 +166,32 @@
 			$section_fields = $section->fetchFields();
 
 			// for each field in the section
-			foreach($section_fields as $section_field){
+			foreach ($section_fields as $section_field) {
 
 				$field = $section_field->get();
 
 				// Skip fields that have not been selected:
-				if (!in_array($field['element_name'], $this->dsParamFIELDS)) continue;
+				if (!in_array($field['element_name'], $this->dsParamFIELDS)) {
+					continue;
+				}
 
 				$f = new XMLElement($field['element_name']);
 				$f->setAttribute('required', $field['required']);
 
 				$result->appendChild($f);
 
-
-				foreach($field as $key => $value) {
+				foreach ($field as $key => $value) {
 					// Core attributes, these are common to all fields
-					if (in_array($key, array('id', 'type', 'required', 'label', 'location', 'show_column', 'sortorder'))) {
+					if (in_array($key, array(
+						'id',
+						'type',
+						'required',
+						'label',
+						'location',
+						'show_column',
+						'sortorder'
+					))
+					) {
 						$f->setattribute(Lang::createHandle($key), General::sanitize($value));
 					}
 					/*
@@ -172,7 +200,26 @@
 						makes sense to filter out those we don't want rather than explicitly
 						choose the ones we do.
 					*/
-					if (!in_array($key, array('id', 'type', 'required', 'label', 'show_column', 'sortorder', 'element_name', 'parent_section', 'location', 'field_id', 'related_field_id', 'static_options', 'dynamic_options', 'pre_populate_source', 'limit', 'allow_author_change', 'url_expression'))) {
+					if (!in_array($key, array(
+						'id',
+						'type',
+						'required',
+						'label',
+						'show_column',
+						'sortorder',
+						'element_name',
+						'parent_section',
+						'location',
+						'field_id',
+						'related_field_id',
+						'static_options',
+						'dynamic_options',
+						'pre_populate_source',
+						'limit',
+						'allow_author_change',
+						'url_expression'
+					))
+					) {
 						if (strlen($value) > 0) {
 							$f->appendChild(new XMLElement(Lang::createHandle($key), $value));
 						}
@@ -180,26 +227,25 @@
 				}
 
 				// if SBL / SBL+, grab associated sections
-				if( in_array($field['type'],array('selectbox_link', 'selectbox_link_plus')) ){
+				if (in_array($field['type'], array('selectbox_link', 'selectbox_link_plus'))) {
 					$sql = sprintf("SELECT `parent_section_id`, `parent_section_field_id` FROM `tbl_sections_association` WHERE `child_section_field_id` = %d", $field['id']);
 
 					$associations = Symphony::Database()->fetch($sql);
 
-					if( is_array( $associations ) ){
+					if (is_array($associations)) {
 						$relations = new XMLElement('relations');
 
-						foreach($associations as $association){
+						foreach ($associations as $association) {
 							$relations->appendChild(
-								new XMLElement('item',null, array(
+								new XMLElement('item', null, array(
 									'section-id' => $association['parent_section_id'],
-									'field-id' => $association['parent_section_field_id']
+									'field-id'   => $association['parent_section_field_id']
 								))
 							);
 						}
 
 						$f->appendChild($relations);
 					}
-
 				}
 
 				// Allow a field to define its own schema XML:
@@ -209,19 +255,20 @@
 				}
 
 				// check that we can safely inspect output of displayPublishPanel (some custom fields do not work)
-				if (in_array($field['type'], self::$_incompatible_publishpanel)) continue;
+				if (in_array($field['type'], self::$_incompatible_publishpanel)) {
+					continue;
+				}
 
 				// grab the HTML used in the Publish entry form
 				$html = new XMLElement('html');
 				$section_field->displayPublishPanel($html);
 
 				$dom = new DomDocument();
-				try{
+				try {
 					$dom->loadXML($html->generate());
-				}
-				catch( Exception $e ){
+				} catch (Exception $e) {
 					$rXXXX = $html->generate();
-					$rXXXX = str_replace('&ndash;','-',$rXXXX);
+					$rXXXX = str_replace('&ndash;', '-', $rXXXX);
 					$dom->loadXML($rXXXX);
 				}
 
@@ -230,13 +277,13 @@
 				$options = new XMLElement('options');
 
 				// find optgroup elements (primarily in Selectbox Link fields)
-				foreach($xpath->query("//*[name()='optgroup']") as $optgroup) {
+				foreach ($xpath->query("//*[name()='optgroup']") as $optgroup) {
 
 					$optgroup_element = new XMLElement('optgroup');
 					$optgroup_element->setAttribute('label', $optgroup->getAttribute('label'));
 
 					// append child options of this group
-					foreach($optgroup->getElementsByTagName('option') as $option) {
+					foreach ($optgroup->getElementsByTagName('option') as $option) {
 						$this->__appendOption($option, $optgroup_element, $field);
 					}
 
@@ -244,7 +291,7 @@
 				}
 
 				// find options that aren't children of groups, and list items (primarily for Taglists)
-				foreach($xpath->query("//*[name()='option' and not(parent::optgroup)] | //*[name()='li']") as $option) {
+				foreach ($xpath->query("//*[name()='option' and not(parent::optgroup)] | //*[name()='li']") as $option) {
 					$this->__appendOption($option, $options, $field);
 				}
 
@@ -263,13 +310,14 @@
 			}
 
 			return $result;
-
 		}
 
 		function __appendOption($option, &$container, $field) {
 			$option_element = new XMLElement('option', $option->nodeValue);
 
-			if (strlen($option->nodeValue) == 0) return;
+			if (strlen($option->nodeValue) == 0) {
+				return;
+			}
 
 			$handle = Lang::createHandle($option->nodeValue);
 
